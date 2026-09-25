@@ -5,6 +5,7 @@ import android.content.*;
 import android.os.*;
 import android.speech.*;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.Voice;
 import java.util.*;
 
 public class VoiceService extends Service {
@@ -26,15 +27,39 @@ public class VoiceService extends Service {
                 .setContentText("Hindi voice assistant is running")
                 .setSmallIcon(android.R.drawable.ic_btn_speak_now).build();
         startForeground(7,n);
+
         tts=new TextToSpeech(this,status->{
             if(status==TextToSpeech.SUCCESS){
                 Locale hi=new Locale("hi","IN");
                 tts.setLanguage(hi);
-                tts.setSpeechRate(0.95f);
+                selectHindiVoice();
+                tts.setSpeechRate(0.90f);
+                tts.setPitch(0.86f);
             }
         });
+
         handler.postDelayed(proactiveCheck,5*60*1000L);
         startListening();
+    }
+
+    private void selectHindiVoice(){
+        if(tts==null)return;
+        Set<Voice> voices=tts.getVoices();
+        Voice best=null;
+        if(voices!=null){
+            for(Voice v:voices){
+                Locale l=v.getLocale();
+                if("hi".equalsIgnoreCase(l.getLanguage()) &&
+                   "IN".equalsIgnoreCase(l.getCountry())){
+                    String n=v.getName().toLowerCase(Locale.ROOT);
+                    if(n.contains("male")||n.contains("prabhat")||n.contains("man")||n.contains("x-hia")){
+                        best=v; break;
+                    }
+                    if(best==null)best=v;
+                }
+            }
+        }
+        if(best!=null)tts.setVoice(best);
     }
 
     private void startListening(){
@@ -69,21 +94,29 @@ public class VoiceService extends Service {
         lastInteraction=System.currentTimeMillis();
         String r=brain.reply(text);
         if("QUIET".equals(r)){
-            quiet=true; proactiveEnabled=false; say("ठीक है, मैं चुप रहूँगा।");
+            quiet=true; proactiveEnabled=false; say("ठीक है, Sir. मैं चुप रहूँगा।");
             return;
         }
         if("RESUME".equals(r)){
-            quiet=false; proactiveEnabled=true; say("ठीक है, मैं फिर से active हूँ।");
+            quiet=false; proactiveEnabled=true; say("जी, Sir. मैं फिर से active हूँ।");
             return;
         }
-        if(r!=null&&!quiet)say(r);
+        if(r!=null&&!quiet)say(makeNatural(r));
+    }
+
+    private String makeNatural(String s){
+        String t=s.trim();
+        if(t.isEmpty())return t;
+        if(t.startsWith("ठीक है।")) return "जी, Sir. "+t.substring("ठीक है।".length()).trim();
+        if(t.startsWith("मैंने सुना:")) return t;
+        return t;
     }
 
     private void checkProactive(){
         if(!stopping){
             long silent=System.currentTimeMillis()-lastInteraction;
             if(proactiveEnabled&&!quiet&&silent>=5*60*1000L){
-                say("क्या हुआ? बहुत देर से चुप हो। सब ठीक है?");
+                say("Sir, क्या हुआ? बहुत देर से चुप हैं। सब ठीक है?");
                 lastInteraction=System.currentTimeMillis();
             }
             handler.postDelayed(proactiveCheck,5*60*1000L);
@@ -91,8 +124,11 @@ public class VoiceService extends Service {
     }
 
     private void say(String s){
-        if(tts!=null&&!quiet || tts!=null&&s.contains("चुप") || tts!=null&&s.contains("active"))
-            tts.speak(s,TextToSpeech.QUEUE_FLUSH,null,"personal_ai");
+        if(tts!=null && (!quiet || s.contains("चुप") || s.contains("active"))){
+            Bundle p=new Bundle();
+            p.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME,1.0f);
+            tts.speak(s,TextToSpeech.QUEUE_FLUSH,p,"personal_ai");
+        }
     }
 
     @Override public int onStartCommand(Intent i,int flags,int id){
