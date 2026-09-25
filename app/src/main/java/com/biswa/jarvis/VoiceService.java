@@ -23,10 +23,16 @@ public class VoiceService extends Service {
         getSystemService(NotificationManager.class).createNotificationChannel(ch);
         Notification n=new Notification.Builder(this,"AI_SERVICE")
                 .setContentTitle("Personal AI active")
-                .setContentText("Voice assistant is running")
+                .setContentText("Hindi voice assistant is running")
                 .setSmallIcon(android.R.drawable.ic_btn_speak_now).build();
         startForeground(7,n);
-        tts=new TextToSpeech(this,status->{});
+        tts=new TextToSpeech(this,status->{
+            if(status==TextToSpeech.SUCCESS){
+                Locale hi=new Locale("hi","IN");
+                tts.setLanguage(hi);
+                tts.setSpeechRate(0.95f);
+            }
+        });
         handler.postDelayed(proactiveCheck,5*60*1000L);
         startListening();
     }
@@ -51,7 +57,7 @@ public class VoiceService extends Service {
             public void onEvent(int a,Bundle b){}
         });
         Intent i=new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE,"bn-IN");
+        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE,"hi-IN");
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS,false);
         recognizer.startListening(i);
@@ -63,11 +69,11 @@ public class VoiceService extends Service {
         lastInteraction=System.currentTimeMillis();
         String r=brain.reply(text);
         if("QUIET".equals(r)){
-            quiet=true; proactiveEnabled=false; say("ঠিক আছে, আমি চুপ থাকছি।");
+            quiet=true; proactiveEnabled=false; say("ठीक है, मैं चुप रहूँगा।");
             return;
         }
         if("RESUME".equals(r)){
-            quiet=false; proactiveEnabled=true; say("ঠিক আছে, আবার active আছি।");
+            quiet=false; proactiveEnabled=true; say("ठीक है, मैं फिर से active हूँ।");
             return;
         }
         if(r!=null&&!quiet)say(r);
@@ -77,7 +83,7 @@ public class VoiceService extends Service {
         if(!stopping){
             long silent=System.currentTimeMillis()-lastInteraction;
             if(proactiveEnabled&&!quiet&&silent>=5*60*1000L){
-                say("কী হলো? অনেকক্ষণ চুপ আছো। সব ঠিক আছে তো?");
+                say("क्या हुआ? बहुत देर से चुप हो। सब ठीक है?");
                 lastInteraction=System.currentTimeMillis();
             }
             handler.postDelayed(proactiveCheck,5*60*1000L);
@@ -85,7 +91,7 @@ public class VoiceService extends Service {
     }
 
     private void say(String s){
-        if(tts!=null&&!quiet||tts!=null&&s.contains("চুপ")||tts!=null&&s.contains("আবার active"))
+        if(tts!=null&&!quiet || tts!=null&&s.contains("चुप") || tts!=null&&s.contains("active"))
             tts.speak(s,TextToSpeech.QUEUE_FLUSH,null,"personal_ai");
     }
 
