@@ -4,42 +4,56 @@ import android.app.*;
 import android.content.*;
 import android.os.*;
 import android.speech.*;
-import android.speech.tts.TextToSpeech;
-import android.speech.tts.Voice;
+import android.speech.tts.*;
 import java.util.*;
 
 public class VoiceService extends Service {
     private SpeechRecognizer recognizer;
     private TextToSpeech tts;
     private Brain brain;
-    private boolean quiet=false, stopping=false, proactiveEnabled=true;
+    private boolean quiet=false, stopping=false, proactiveEnabled=true, speaking=false;
     private long lastInteraction=System.currentTimeMillis();
+    private String lastInput="";
+    private long lastInputAt=0L;
     private final Handler handler=new Handler(Looper.getMainLooper());
     private final Runnable proactiveCheck=()->checkProactive();
 
     @Override public void onCreate(){
         super.onCreate();
         brain=new Brain(this);
-        NotificationChannel ch=new NotificationChannel("AI_SERVICE","Personal AI",NotificationManager.IMPORTANCE_LOW);
+
+        NotificationChannel ch=new NotificationChannel(
+                "AI_SERVICE","Personal AI",NotificationManager.IMPORTANCE_LOW);
         getSystemService(NotificationManager.class).createNotificationChannel(ch);
         Notification n=new Notification.Builder(this,"AI_SERVICE")
                 .setContentTitle("Personal AI active")
                 .setContentText("Hindi voice assistant is running")
-                .setSmallIcon(android.R.drawable.ic_btn_speak_now).build();
+                .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+                .build();
         startForeground(7,n);
 
         tts=new TextToSpeech(this,status->{
             if(status==TextToSpeech.SUCCESS){
-                Locale hi=new Locale("hi","IN");
-                tts.setLanguage(hi);
+                tts.setLanguage(new Locale("hi","IN"));
                 selectHindiVoice();
                 tts.setSpeechRate(0.90f);
                 tts.setPitch(0.86f);
+                tts.setOnUtteranceProgressListener(new UtteranceProgressListener(){
+                    @Override public void onStart(String id){ speaking=true; }
+                    @Override public void onDone(String id){
+                        speaking=false;
+                        if(!stopping) handler.postDelayed(()->startListening(),450);
+                    }
+                    @Override public void onError(String id){
+                        speaking=false;
+                        if(!stopping) handler.postDelayed(()->startListening(),450);
+                    }
+                });
             }
         });
 
         handler.postDelayed(proactiveCheck,5*60*1000L);
-        startListening();
+        handler.postDelayed(()->startListening(),700);
     }
 
     private void selectHindiVoice(){
@@ -53,7 +67,8 @@ public class VoiceService extends Service {
                    "IN".equalsIgnoreCase(l.getCountry())){
                     String n=v.getName().toLowerCase(Locale.ROOT);
                     if(n.contains("male")||n.contains("prabhat")||n.contains("man")||n.contains("x-hia")){
-                        best=v; break;
+                        best=v;
+                        break;
                     }
                     if(best==null)best=v;
                 }
@@ -63,16 +78,21 @@ public class VoiceService extends Service {
     }
 
     private void startListening(){
-        if(stopping||!SpeechRecognizer.isRecognitionAvailable(this))return;
-        if(recognizer!=null){try{recognizer.cancel();recognizer.destroy();}catch(Exception ignored){} recognizer=null;}
+        if(stopping||quiet||speaking||!SpeechRecognizer.isRecognitionAvailable(this))return;
+
+        if(recognizer!=null){
+            try{recognizer.cancel();recognizer.destroy();}catch(Exception ignored){}
+            recognizer=null;
+        }
+
         recognizer=SpeechRecognizer.createSpeechRecognizer(this);
         recognizer.setRecognitionListener(new RecognitionListener(){
             public void onResults(Bundle b){
                 ArrayList<String> r=b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
                 if(r!=null&&!r.isEmpty())handle(r.get(0));
-                restart(500);
+                if(!speaking)restart(500);
             }
-            public void onError(int e){restart(1200);}
+            public void onError(int e){if(!speaking)restart(1200);}
             public void onReadyForSpeech(Bundle b){}
             public void onBeginningOfSpeech(){lastInteraction=System.currentTimeMillis();}
             public void onRmsChanged(float v){}
@@ -81,60 +101,95 @@ public class VoiceService extends Service {
             public void onPartialResults(Bundle b){}
             public void onEvent(int a,Bundle b){}
         });
+
         Intent i=new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE,"hi-IN");
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS,false);
+        i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,3);
         recognizer.startListening(i);
     }
 
-    private void restart(long ms){if(!stopping)handler.postDelayed(this::startListening,ms);}
+    private void restart(long ms){
+        if(!stopping&&!quiet&&!speaking)handler.postDelayed(this::startListening,ms);
+    }
 
     private void handle(String text){
-        lastInteraction=System.currentTimeMillis();
-        String r=brain.reply(text);
+        String clean=text==null?"":text.trim();
+        if(clean.isEmpty())return;
+
+        long now=System.currentTimeMillis();
+        String key=clean.toLowerCase(Locale.ROOT);
+        if(key.equals(lastInput)&&now-lastInputAt<2500)return;
+        lastInput=key;
+        lastInputAt=now;
+        lastInteraction=now;
+
+        String r=brain.reply(clean);
+
         if("QUIET".equals(r)){
-            quiet=true; proactiveEnabled=false; say("ठीक है, Sir. मैं चुप रहूँगा।");
+            quiet=true;
+            proactiveEnabled=false;
+            say("ठीक है, Sir. मैं चुप रहूँगा।",true);
             return;
         }
+
         if("RESUME".equals(r)){
-            quiet=false; proactiveEnabled=true; say("जी, Sir. मैं फिर से active हूँ।");
+            quiet=false;
+            proactiveEnabled=true;
+            lastInteraction=System.currentTimeMillis();
+            say("जी, Sir. मैं फिर से active हूँ।",true);
             return;
         }
-        if(r!=null&&!quiet)say(makeNatural(r));
+
+        if(r!=null&&!quiet)say(makeNatural(r),false);
     }
 
     private String makeNatural(String s){
         String t=s.trim();
         if(t.isEmpty())return t;
-        if(t.startsWith("ठीक है।")) return "जी, Sir. "+t.substring("ठीक है।".length()).trim();
-        if(t.startsWith("मैंने सुना:")) return t;
+        if(t.startsWith("ठीक है।"))
+            return "जी, Sir. "+t.substring("ठीक है।".length()).trim();
         return t;
     }
 
     private void checkProactive(){
         if(!stopping){
             long silent=System.currentTimeMillis()-lastInteraction;
-            if(proactiveEnabled&&!quiet&&silent>=5*60*1000L){
-                say("Sir, क्या हुआ? बहुत देर से चुप हैं। सब ठीक है?");
+            if(proactiveEnabled&&!quiet&&!speaking&&silent>=5*60*1000L){
+                say("Sir, क्या हुआ? बहुत देर से चुप हैं। सब ठीक है?",false);
                 lastInteraction=System.currentTimeMillis();
             }
             handler.postDelayed(proactiveCheck,5*60*1000L);
         }
     }
 
-    private void say(String s){
-        if(tts!=null && (!quiet || s.contains("चुप") || s.contains("active"))){
-            Bundle p=new Bundle();
-            p.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME,1.0f);
-            tts.speak(s,TextToSpeech.QUEUE_FLUSH,p,"personal_ai");
+    private void say(String s, boolean allowQuietMessage){
+        if(tts==null||s==null||s.trim().isEmpty())return;
+
+        if(recognizer!=null){
+            try{recognizer.cancel();recognizer.destroy();}catch(Exception ignored){}
+            recognizer=null;
         }
+
+        Bundle p=new Bundle();
+        p.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME,1.0f);
+        String id="personal_ai_"+System.currentTimeMillis();
+        tts.speak(s,TextToSpeech.QUEUE_FLUSH,p,id);
     }
 
     @Override public int onStartCommand(Intent i,int flags,int id){
         if(i!=null){
-            if("QUIET".equals(i.getAction())){quiet=true;proactiveEnabled=false;}
-            if("RESUME".equals(i.getAction())){quiet=false;proactiveEnabled=true;lastInteraction=System.currentTimeMillis();}
+            if("QUIET".equals(i.getAction())){
+                quiet=true;
+                proactiveEnabled=false;
+                say("ठीक है, Sir. मैं चुप रहूँगा।",true);
+            }else if("RESUME".equals(i.getAction())){
+                quiet=false;
+                proactiveEnabled=true;
+                lastInteraction=System.currentTimeMillis();
+                say("जी, Sir. मैं फिर से active हूँ।",true);
+            }
         }
         return START_STICKY;
     }
@@ -146,5 +201,6 @@ public class VoiceService extends Service {
         if(tts!=null)tts.shutdown();
         super.onDestroy();
     }
+
     @Override public IBinder onBind(Intent i){return null;}
 }
