@@ -21,7 +21,7 @@ public class Brain {
             String value=extractAfterAny(raw,"पसंद","pasand","favorite");
             if(!value.isEmpty()){memory.remember("preference","user_preference",cleanMemoryValue(value));return finish(raw,"ठीक है। तुम्हारी पसंद memory में save कर ली।");}
         }
-        if((contains(t,"याद रख","yaad rakh","remember")) && (contains(t,"संध्या","sandhya","sandhya"))){
+        if((contains(t,"याद रख","yaad rakh","remember")) && contains(t,"संध्या","sandhya")){
             memory.remember("people","important_person",raw);
             return finish(raw,"ठीक है। यह बात important memory में save कर ली।");
         }
@@ -76,9 +76,30 @@ public class Brain {
         if(contains(t,"धन्यवाद","thank you","thanks","shukriya"))
             return finish(raw,"हमेशा।");
         if(contains(t,"क्या कर सकते हो","क्या कर सकते","what can you do","kya kar sakte ho"))
-            return finish(raw,"मैं voice commands, personal memory, conversation history, time/date, calculations और quiet mode संभाल सकता हूँ।");
+            return finish(raw,"मैं voice commands, personal memory, conversation history, time/date, calculations और local AI brain संभाल सकता हूँ।");
 
-        return finish(raw,"मैंने सुना: "+raw+"। इस सवाल का जवाब देने के लिए मेरा local knowledge engine अभी बनाया जा रहा है।");
+        return "__LOCAL_LLM__";
+    }
+
+    public String systemPrompt(){
+        return "तुम Personal AI हो। तुम Biswajit के निजी assistant हो। सम्मान से Sir कह सकते हो, लेकिन हर वाक্যে Sir मत बोलो। "+
+               "Hindi, Hinglish, Bangla और English বুঝো। छोटे, natural और useful जवाब दो। बिना जरूरत लंबा lecture मत दो। "+
+               "নিজেকে ChatGPT/Gemini বলবে না। তুমি movie JARVIS-এর copy নও; তোমার নিজের personality আছে। "+
+               "তুমি যা নিশ্চিত জানো না, তা বানিয়ে বলবে না।";
+    }
+
+    public String buildPrompt(String userText){
+        String mem=memory.memories();
+        String recent=memory.conversation();
+        StringBuilder p=new StringBuilder();
+        if(!mem.isEmpty())p.append("Relevant personal memory:\n").append(mem).append("\n\n");
+        if(!recent.isEmpty())p.append("Recent conversation:\n").append(recent).append("\n\n");
+        p.append("User said:\n").append(userText);
+        return p.toString();
+    }
+
+    public void saveLLMAnswer(String userText,String answer){
+        memory.addConversation(userText,answer);
     }
 
     private boolean contains(String t,String... words){for(String w:words)if(t.contains(w.toLowerCase(Locale.ROOT)))return true;return false;}
