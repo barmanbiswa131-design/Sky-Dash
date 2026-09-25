@@ -13,79 +13,83 @@ public class Brain {
         String t=raw.toLowerCase(Locale.ROOT);
         if(t.isEmpty()) return null;
 
-        if((t.contains("মনে রাখ")||t.contains("remember"))&&t.contains("আমার নাম")){
-            String value=extractAfter(raw,"আমার নাম");
-            if(!value.isEmpty()){memory.remember("identity","user_name",cleanMemoryValue(value));return finish(raw,"ঠিক আছে। তোমার নাম memory-তে রাখলাম।");}
+        if((contains(t,"याद रख","yaad rakh","remember")) && (contains(t,"मेरा नाम","mera naam","my name"))){
+            String value=extractAfterAny(raw,"मेरा नाम","mera naam","my name");
+            if(!value.isEmpty()){memory.remember("identity","user_name",cleanMemoryValue(value));return finish(raw,"ठीक है। तुम्हारा नाम memory में save कर लिया।");}
         }
-        if((t.contains("মনে রাখ")||t.contains("remember"))&&(t.contains("পছন্দ")||t.contains("ভালো লাগে")||t.contains("favorite"))){
-            String value=extractAfterAny(raw,"পছন্দ","ভালো লাগে","favorite");
-            if(!value.isEmpty()){memory.remember("preference","user_preference",cleanMemoryValue(value));return finish(raw,"ঠিক আছে। তোমার পছন্দটা memory-তে রাখলাম।");}
+        if((contains(t,"याद रख","yaad rakh","remember")) && (contains(t,"पसंद","pasand","favorite"))){
+            String value=extractAfterAny(raw,"पसंद","pasand","favorite");
+            if(!value.isEmpty()){memory.remember("preference","user_preference",cleanMemoryValue(value));return finish(raw,"ठीक है। तुम्हारी पसंद memory में save कर ली।");}
         }
-        if((t.contains("মনে রাখ")||t.contains("remember"))&&(t.contains("স্যান্ডহ্যা")||t.contains("sandhya"))){
+        if((contains(t,"याद रख","yaad rakh","remember")) && (contains(t,"संध्या","sandhya","sandhya"))){
             memory.remember("people","important_person",raw);
-            return finish(raw,"ঠিক আছে। এই কথাটা important memory-তে রাখলাম।");
+            return finish(raw,"ठीक है। यह बात important memory में save कर ली।");
         }
 
-        if(t.contains("আমার নাম কি")||t.contains("আমার নাম কী")||t.contains("what is my name")){
+        if(contains(t,"मेरा नाम क्या","mera naam kya","what is my name")){
             String v=memory.recall("user_name");
-            return finish(raw,v==null?"তোমার নাম এখনো memory-তে নেই।":"তোমার নাম "+v+"।");
+            return finish(raw,v==null?"तुम्हारा नाम अभी memory में नहीं है।":"तुम्हारा नाम "+v+" है।");
         }
-        if(t.contains("আমি কি পছন্দ করি")||t.contains("আমার পছন্দ কি")||t.contains("my preference")){
+        if(contains(t,"मुझे क्या पसंद","मेरी पसंद","meri pasand","my preference")){
             String v=memory.recall("user_preference");
-            return finish(raw,v==null?"তোমার পছন্দ এখনো save করা নেই।":"তুমি বলেছিলে: "+v+"।");
+            return finish(raw,v==null?"तुम्हारी पसंद अभी save नहीं है।":"तुमने कहा था: "+v+"।");
         }
-        if(t.contains("কি মনে রেখেছ")||t.contains("কী মনে রেখেছ")||t.contains("what do you remember")){
+        if(contains(t,"क्या याद है","क्या याद रखा","tumhe kya yaad","what do you remember")){
             String m=memory.memories();
-            return finish(raw,m.isEmpty()?"এখনো কোনো personal memory নেই।":"আমার memory-তে আছে:\n"+m);
+            return finish(raw,m.isEmpty()?"अभी कोई personal memory नहीं है।":"मेरी memory में है:\n"+m);
         }
-        if(t.contains("আগের কথা")||t.contains("previous conversation")||t.contains("কি বলেছিলাম")||t.contains("কী বলেছিলাম")){
+        if(contains(t,"पिछली बात","पहले क्या कहा","pichli baat","previous conversation")){
             String log=memory.conversation();
-            return finish(raw,log.isEmpty()?"আমাদের কোনো পুরোনো conversation নেই।":"সাম্প্রতিক conversation:\n"+log);
+            return finish(raw,log.isEmpty()?"हमारी कोई पुरानी conversation नहीं है।":"हाल की conversation:\n"+log);
         }
-        if(t.contains("সব memory")||t.contains("সব মেমরি")||t.contains("সবকিছু ভুলে")||t.contains("ভুলে যাও")||t.contains("forget memory")){
-            memory.clear(); return "ঠিক আছে। আমার personal memory এবং conversation history মুছে দিলাম।";
+        if(contains(t,"सब भूल जाओ","सब memory","सब कुछ भूल","forget memory","bhool jao")){
+            memory.clear(); return "ठीक है। मेरी personal memory और conversation history मिटा दी।";
         }
 
-        if(t.equals("চুপ")||t.contains("চুপ থাক")||t.contains("quiet")||t.contains("chup")) return "QUIET";
-        if(t.contains("আবার কথা")||t.contains("resume")||t.contains("abar kotha")) return "RESUME";
+        if(t.equals("चुप")||contains(t,"चुप रह","चुप हो जाओ","quiet","chup raho","chup")){
+            return "QUIET";
+        }
+        if(contains(t,"फिर से बात","फिर बात करो","resume","dobara bolo","phir se baat")){
+            return "RESUME";
+        }
 
-        if(t.contains("সময় কত")||t.contains("সময় কত")||t.contains("what time"))
-            return finish(raw,"এখন "+new SimpleDateFormat("h:mm a",Locale.ENGLISH).format(new Date())+"।");
-        if(t.contains("আজকের তারিখ")||t.contains("আজ কত তারিখ")||t.contains("today's date")||t.contains("what date"))
-            return finish(raw,"আজ "+new SimpleDateFormat("dd MMMM yyyy",Locale.ENGLISH).format(new Date())+"।");
+        if(contains(t,"समय क्या","अभी कितने बजे","time kya","what time"))
+            return finish(raw,"अभी "+new SimpleDateFormat("h:mm a",Locale.ENGLISH).format(new Date())+" है।");
+        if(contains(t,"आज की तारीख","आज कितनी तारीख","aaj ki date","what date"))
+            return finish(raw,"आज "+new SimpleDateFormat("dd MMMM yyyy",new Locale("hi","IN")).format(new Date())+" है।");
 
         if(isMath(t)){
             String ans=calculate(t);
-            if(ans!=null)return finish(raw,"উত্তর: "+ans);
+            if(ans!=null)return finish(raw,"जवाब: "+ans);
         }
 
-        if(t.contains("কে বানিয়েছে")||t.contains("কে বানিয়েছে")||t.contains("who made you")||t.contains("who created you"))
-            return finish(raw,"আমাকে Biswajit Barman বানাচ্ছে।");
-        if(t.contains("তোমার নাম")||t.contains("your name"))
-            return finish(raw,"আমার নাম Personal AI। আমি তোমার নিজের AI assistant।");
-        if(t.contains("কেমন আছ")||t.contains("কেমন আছো")||t.contains("how are you"))
-            return finish(raw,"আমি ঠিক আছি। তোমার কাজে সাহায্য করার জন্য ready আছি।");
-        if(t.contains("শুভ সকাল")||t.contains("good morning"))
-            return finish(raw,"শুভ সকাল! আজকে বড় কিছু করি।");
-        if(t.contains("শুভ রাত্রি")||t.contains("good night"))
-            return finish(raw,"শুভ রাত্রি। ভালো করে ঘুমাও।");
-        if(t.contains("ধন্যবাদ")||t.contains("thank you")||t.equals("thanks"))
-            return finish(raw,"সবসময়।");
-        if(t.contains("কি করতে পার")||t.contains("কী করতে পার")||t.contains("what can you do"))
-            return finish(raw,"আমি voice command, personal memory, conversation history, time/date, basic calculations এবং quiet mode handle করতে পারি।");
+        if(contains(t,"किसने बनाया","तुम्हें किसने बनाया","who made you","kisne banaya"))
+            return finish(raw,"मुझे Biswajit Barman बना रहे हैं।");
+        if(contains(t,"तुम्हारा नाम","आपका नाम","your name","tumhara naam"))
+            return finish(raw,"मेरा नाम Personal AI है। मैं तुम्हारा अपना AI assistant हूँ।");
+        if(contains(t,"कैसे हो","कैसी हो","how are you","kaise ho"))
+            return finish(raw,"मैं ठीक हूँ। तुम्हारी मदद करने के लिए ready हूँ।");
+        if(contains(t,"सुप्रभात","good morning","suprabhat"))
+            return finish(raw,"सुप्रभात! आज कुछ अच्छा करते हैं।");
+        if(contains(t,"शुभ रात्रि","good night","shubh ratri"))
+            return finish(raw,"शुभ रात्रि। अच्छी नींद लो।");
+        if(contains(t,"धन्यवाद","thank you","thanks","shukriya"))
+            return finish(raw,"हमेशा।");
+        if(contains(t,"क्या कर सकते हो","क्या कर सकते","what can you do","kya kar sakte ho"))
+            return finish(raw,"मैं voice commands, personal memory, conversation history, time/date, calculations और quiet mode संभाल सकता हूँ।");
 
-        return finish(raw,"আমি শুনেছি: "+raw+"। এই বিষয়ে এখনো আমার local knowledge engine-এ যথেষ্ট তথ্য নেই।");
+        return finish(raw,"मैंने सुना: "+raw+"। इस सवाल का जवाब देने के लिए मेरा local knowledge engine अभी बनाया जा रहा है।");
     }
 
+    private boolean contains(String t,String... words){for(String w:words)if(t.contains(w.toLowerCase(Locale.ROOT)))return true;return false;}
     private String finish(String user,String answer){ memory.addConversation(user,answer); return answer; }
 
-    private String extractAfter(String raw,String marker){
-        int i=raw.toLowerCase(Locale.ROOT).lastIndexOf(marker.toLowerCase(Locale.ROOT));
-        return i<0?"":raw.substring(i+marker.length()).replace("মনে রাখ","").replace("remember","").trim();
-    }
     private String extractAfterAny(String raw,String... markers){
         String best="";
-        for(String m:markers){String v=extractAfter(raw,m);if(v.length()>best.length())best=v;}
+        for(String m:markers){
+            int i=raw.toLowerCase(Locale.ROOT).lastIndexOf(m.toLowerCase(Locale.ROOT));
+            if(i>=0){String v=raw.substring(i+m.length()).replace("याद रख","").replace("yaad rakh","").replace("remember","").trim();if(v.length()>best.length())best=v;}
+        }
         return best;
     }
     private String cleanMemoryValue(String v){return v.replaceAll("^[ :,-]+","").replaceAll("[.!]+$","").trim();}
@@ -109,5 +113,5 @@ public class Brain {
             double parseFactor(){if(c=='+'){next();return parseFactor();}if(c=='-'){next();return -parseFactor();}double x;int st=p;if(c=='('){next();x=parseExpr();if(c!=')')throw new RuntimeException();next();return x;}while((c>='0'&&c<='9')||c=='.')next();x=Double.parseDouble(s.substring(st,p));return x;}
         }.parse();
     }
-    private String format(double n){if(Double.isInfinite(n)||Double.isNaN(n))return "হিসাব করা যায়নি";if(n==(long)n)return String.valueOf((long)n);return String.valueOf(n);}
+    private String format(double n){if(Double.isInfinite(n)||Double.isNaN(n))return "हिसाब नहीं हो पाया";if(n==(long)n)return String.valueOf((long)n);return String.valueOf(n);}
 }
