@@ -11,7 +11,7 @@ public class VoiceService extends Service {
     private SpeechRecognizer recognizer;
     private TextToSpeech tts;
     private Brain brain;
-    private boolean quiet=false, stopping=false, proactiveEnabled=true, speaking=false;
+    private boolean quiet=false, stopping=false, proactiveEnabled=true, speaking=false, llmBusy=false;
     private long lastInteraction=System.currentTimeMillis();
     private String lastInput="";
     private long lastInputAt=0L;
@@ -78,7 +78,7 @@ public class VoiceService extends Service {
     }
 
     private void startListening(){
-        if(stopping||quiet||speaking||!SpeechRecognizer.isRecognitionAvailable(this))return;
+        if(stopping||quiet||speaking||llmBusy||!SpeechRecognizer.isRecognitionAvailable(this))return;
 
         if(recognizer!=null){
             try{recognizer.cancel();recognizer.destroy();}catch(Exception ignored){}
@@ -90,9 +90,9 @@ public class VoiceService extends Service {
             public void onResults(Bundle b){
                 ArrayList<String> r=b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
                 if(r!=null&&!r.isEmpty())handle(r.get(0));
-                if(!speaking)restart(500);
+                if(!speaking&&!llmBusy)restart(500);
             }
-            public void onError(int e){if(!speaking)restart(1200);}
+            public void onError(int e){if(!speaking&&!llmBusy)restart(1200);}
             public void onReadyForSpeech(Bundle b){}
             public void onBeginningOfSpeech(){lastInteraction=System.currentTimeMillis();}
             public void onRmsChanged(float v){}
@@ -111,7 +111,7 @@ public class VoiceService extends Service {
     }
 
     private void restart(long ms){
-        if(!stopping&&!quiet&&!speaking)handler.postDelayed(this::startListening,ms);
+        if(!stopping&&!quiet&&!speaking&&!llmBusy)handler.postDelayed(this::startListening,ms);
     }
 
     private void handle(String text){
@@ -130,7 +130,7 @@ public class VoiceService extends Service {
         if("QUIET".equals(r)){
             quiet=true;
             proactiveEnabled=false;
-            say("ठीक है, Sir. मैं चुप रहूँगा।",true);
+            say("ठीक है, Sir. मैं चुप रहूँगा।");
             return;
         }
 
@@ -138,40 +138,73 @@ public class VoiceService extends Service {
             quiet=false;
             proactiveEnabled=true;
             lastInteraction=System.currentTimeMillis();
-            say("जी, Sir. मैं फिर से active हूँ।",true);
+            say("जी, Sir. मैं फिर से active हूँ।");
             return;
         }
 
-        if(r!=null&&!quiet)say(makeNatural(r),false);
+        if("__LOCAL_LLM__".equals(r)){
+            askLocalBrain(clean);
+            return;
+        }
+
+        if(r!=null&&!quiet)say(makeNatural(r));
+    }
+
+    private void askLocalBrain(String userText){
+        if(llmBusy||quiet)return;
+        llmBusy=true;
+        stopListeningNow();
+
+        LocalLLMClient.generate(brain.systemPrompt(),brain.buildPrompt(userText),
+                new LocalLLMClient.Callback(){
+                    @Override public void onResult(String answer){
+                        handler.post(()->{
+                            llmBusy=false;
+                            if(stopping||quiet)return;
+                            brain.saveLLMAnswer(userText,answer);
+                            lastInteraction=System.currentTimeMillis();
+                            say(makeNatural(answer));
+                        });
+                    }
+                    @Override public void onError(String message){
+                        handler.post(()->{
+                            llmBusy=false;
+                            if(stopping||quiet)return;
+                            say("Sir, मेरा local brain अभी चालू नहीं है।");
+                        });
+                    }
+                });
     }
 
     private String makeNatural(String s){
-        String t=s.trim();
+        String t=s==null?"":s.trim();
         if(t.isEmpty())return t;
         if(t.startsWith("ठीक है।"))
             return "जी, Sir. "+t.substring("ठीक है।".length()).trim();
         return t;
     }
 
+    private void stopListeningNow(){
+        if(recognizer!=null){
+            try{recognizer.cancel();recognizer.destroy();}catch(Exception ignored){}
+            recognizer=null;
+        }
+    }
+
     private void checkProactive(){
         if(!stopping){
             long silent=System.currentTimeMillis()-lastInteraction;
-            if(proactiveEnabled&&!quiet&&!speaking&&silent>=5*60*1000L){
-                say("Sir, क्या हुआ? बहुत देर से चुप हैं। सब ठीक है?",false);
+            if(proactiveEnabled&&!quiet&&!speaking&&!llmBusy&&silent>=5*60*1000L){
+                say("Sir, क्या हुआ? बहुत देर से चुप हैं। सब ठीक है?");
                 lastInteraction=System.currentTimeMillis();
             }
             handler.postDelayed(proactiveCheck,5*60*1000L);
         }
     }
 
-    private void say(String s, boolean allowQuietMessage){
+    private void say(String s){
         if(tts==null||s==null||s.trim().isEmpty())return;
-
-        if(recognizer!=null){
-            try{recognizer.cancel();recognizer.destroy();}catch(Exception ignored){}
-            recognizer=null;
-        }
-
+        stopListeningNow();
         Bundle p=new Bundle();
         p.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME,1.0f);
         String id="personal_ai_"+System.currentTimeMillis();
@@ -183,12 +216,12 @@ public class VoiceService extends Service {
             if("QUIET".equals(i.getAction())){
                 quiet=true;
                 proactiveEnabled=false;
-                say("ठीक है, Sir. मैं चुप रहूँगा।",true);
+                say("ठीक है, Sir. मैं चुप रहूँगा।");
             }else if("RESUME".equals(i.getAction())){
                 quiet=false;
                 proactiveEnabled=true;
                 lastInteraction=System.currentTimeMillis();
-                say("जी, Sir. मैं फिर से active हूँ।",true);
+                say("जी, Sir. मैं फिर से active हूँ।");
             }
         }
         return START_STICKY;
@@ -197,7 +230,7 @@ public class VoiceService extends Service {
     @Override public void onDestroy(){
         stopping=true;
         handler.removeCallbacksAndMessages(null);
-        if(recognizer!=null)try{recognizer.destroy();}catch(Exception ignored){}
+        stopListeningNow();
         if(tts!=null)tts.shutdown();
         super.onDestroy();
     }
