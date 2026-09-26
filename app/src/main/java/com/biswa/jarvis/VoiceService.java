@@ -142,7 +142,7 @@ public class VoiceService extends Service {
             return;
         }
 
-        if(r!=null && r.startsWith("PHONE:")){\n            PhoneActionEngine engine=new PhoneActionEngine(this);\n            String answer=engine.execute(r.substring(6));\n            if(answer!=null) say(answer);\n            return;\n        }\n\n        if("STOP".equals(r)){
+        if(r!=null && r.startsWith("CAMERA:")){\n            Intent i=new Intent(this,CameraActivity.class);\n            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);\n            i.putExtra("camera",r.substring(7));\n            startActivity(i);\n            return;\n        }\n\n        if(r!=null && r.startsWith("PHONE:")){\n            PhoneActionEngine engine=new PhoneActionEngine(this);\n            String answer=engine.execute(r.substring(6));\n            if(answer!=null) say(answer);\n            return;\n        }\n\n        if("STOP".equals(r)){
             quiet=true;
             proactiveEnabled=false;
             stopping=true;
