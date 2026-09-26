@@ -142,6 +142,20 @@ public class VoiceService extends Service {
             return;
         }
 
+        if("STOP".equals(r)){
+            quiet=true;
+            proactiveEnabled=false;
+            stopping=true;
+            stopListeningNow();
+            if(tts!=null){
+                Bundle p=new Bundle();
+                p.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME,1.0f);
+                tts.speak("ठीक है, Sir. मैं बंद हो रहा हूँ।",TextToSpeech.QUEUE_FLUSH,p,"shutdown");
+            }
+            handler.postDelayed(()->stopSelf(),1800);
+            return;
+        }
+
         if("__LOCAL_LLM__".equals(r)){
             askLocalBrain(clean);
             return;
@@ -222,6 +236,17 @@ public class VoiceService extends Service {
                 proactiveEnabled=true;
                 lastInteraction=System.currentTimeMillis();
                 say("जी, Sir. मैं फिर से active हूँ।");
+            }else if("STOP".equals(i.getAction())){
+                stopping=true;
+                quiet=true;
+                proactiveEnabled=false;
+                stopListeningNow();
+                if(tts!=null){
+                    Bundle p=new Bundle();
+                    p.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME,1.0f);
+                    tts.speak("ठीक है, Sir. मैं बंद हो रहा हूँ।",TextToSpeech.QUEUE_FLUSH,p,"shutdown");
+                }
+                handler.postDelayed(()->stopSelf(),1800);
             }
         }
         return START_STICKY;
