@@ -6,11 +6,13 @@ import android.content.*;
 import android.content.pm.PackageManager;
 import android.os.*;
 import android.graphics.Color;
+import android.provider.Settings;
 import android.widget.*;
 
 public class MainActivity extends Activity {
     TextView status;
     Button power;
+    Button phoneControl;
 
     @Override public void onCreate(Bundle b){
         super.onCreate(b);
@@ -37,6 +39,10 @@ public class MainActivity extends Activity {
         power.setText("START AI");
         root.addView(power);
 
+        phoneControl=new Button(this);
+        phoneControl.setText("ENABLE PHONE CONTROL");
+        root.addView(phoneControl);
+
         TextView hint=new TextView(this);
         hint.setText("Voice control: “chup raho” / “phir se baat karo” / “AI band ho jao”");
         hint.setTextColor(Color.GRAY);
@@ -45,6 +51,7 @@ public class MainActivity extends Activity {
         root.addView(hint);
 
         power.setOnClickListener(v->startAI());
+        phoneControl.setOnClickListener(v->openAccessibilitySettings());
 
         setContentView(root);
         requestPermissionsIfNeeded();
@@ -52,6 +59,8 @@ public class MainActivity extends Activity {
         if(Build.VERSION.SDK_INT < 23 ||
            checkSelfPermission(Manifest.permission.RECORD_AUDIO)==PackageManager.PERMISSION_GRANTED)
             startAI();
+
+        updatePhoneControlState();
     }
 
     void requestPermissionsIfNeeded(){
@@ -82,11 +91,45 @@ public class MainActivity extends Activity {
         status.setText("AI active. Speak normally.");
     }
 
+    void openAccessibilitySettings(){
+        try{
+            startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+        }catch(Exception e){
+            Toast.makeText(this,"Accessibility settings খুলতে পারিনি",Toast.LENGTH_LONG).show();
+        }
+    }
+
+    boolean isPhoneControlEnabled(){
+        String enabled=Settings.Secure.getString(
+                getContentResolver(),
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        );
+        if(enabled==null)return false;
+
+        String target=getPackageName()+"/"+JarvisAccessibilityService.class.getName();
+        for(String item:enabled.split(":")){
+            if(item.equalsIgnoreCase(target))return true;
+        }
+        return false;
+    }
+
+    void updatePhoneControlState(){
+        if(phoneControl==null)return;
+        if(isPhoneControlEnabled()){
+            phoneControl.setText("PHONE CONTROL ENABLED");
+            phoneControl.setEnabled(false);
+        }else{
+            phoneControl.setText("ENABLE PHONE CONTROL");
+            phoneControl.setEnabled(true);
+        }
+    }
+
     @Override protected void onResume(){
         super.onResume();
         if(Build.VERSION.SDK_INT < 23 ||
            checkSelfPermission(Manifest.permission.RECORD_AUDIO)==PackageManager.PERMISSION_GRANTED)
             startAI();
+        updatePhoneControlState();
     }
 
     @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){
