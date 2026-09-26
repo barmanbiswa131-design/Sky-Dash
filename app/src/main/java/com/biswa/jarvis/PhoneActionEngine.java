@@ -27,6 +27,12 @@ public class PhoneActionEngine {
                     ? "জি Sir, long click করেছি।"
                     : "Sir, ওই text এখন screen-এ পাইনি।";
         }
+        if(c.startsWith("search:")){
+            String query=command.substring(command.indexOf(':')+1).trim();
+            return JarvisAccessibilityService.inputText(query)
+                    ? "জি Sir, search text লিখে দিয়েছি।"
+                    : "Sir, search box এখন পাইনি।";
+        }
         if(c.startsWith("click:")){
             String text=command.substring(command.indexOf(':')+1).trim();
             return JarvisAccessibilityService.clickText(text)
