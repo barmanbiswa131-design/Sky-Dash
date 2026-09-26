@@ -61,6 +61,11 @@ public class Brain {
         if(contains(t,"facebook kholo","facebook खोलो","facebook open","open facebook")) return "PHONE:open_app:Facebook";
         if(contains(t,"youtube kholo","youtube खोलो","youtube open","open youtube")) return "PHONE:open_app:YouTube";
         if(contains(t,"telegram kholo","telegram खोलो","telegram open","open telegram")) return "PHONE:open_app:Telegram";
+        if(contains(t,"search","search e","search in","খুঁজে","খোজ","search karo","search kar")){
+            String q=extractSearchQuery(raw);
+            if(!q.isEmpty()) return "PHONE:search:"+q;
+        }
+
         if(contains(t,"back jao","पीछे जाओ","back karo","go back")) return "PHONE:back";
         if(contains(t,"home jao","home kholo","home screen","go home")) return "PHONE:home";
         if(contains(t,"neeche scroll","नीचे scroll","scroll down")) return "PHONE:scroll_down";
