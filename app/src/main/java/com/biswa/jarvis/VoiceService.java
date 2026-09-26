@@ -142,7 +142,7 @@ public class VoiceService extends Service {
             return;
         }
 
-        if("STOP".equals(r)){
+        if(r!=null && r.startsWith("PHONE:")){\n            PhoneActionEngine engine=new PhoneActionEngine(this);\n            String answer=engine.execute(r.substring(6));\n            if(answer!=null) say(answer);\n            return;\n        }\n\n        if("STOP".equals(r)){
             quiet=true;
             proactiveEnabled=false;
             stopping=true;
