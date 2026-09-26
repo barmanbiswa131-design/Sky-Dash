@@ -52,6 +52,9 @@ public class Brain {
         if(contains(t,"फिर से बात","फिर बात करो","resume","dobara bolo","phir se baat")){
             return "RESUME";
         }
+        if(contains(t,"पूरी तरह बंद","बंद हो जाओ","बंद हो जा","ai बंद","ai band","band ho jao","band ho ja","shutdown","stop ai")){
+            return "STOP";
+        }
 
         if(contains(t,"समय क्या","अभी कितने बजे","time kya","what time"))
             return finish(raw,"अभी "+new SimpleDateFormat("h:mm a",Locale.ENGLISH).format(new Date())+" है।");
