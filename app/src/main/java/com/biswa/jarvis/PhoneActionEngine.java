@@ -18,8 +18,8 @@ public class PhoneActionEngine {
         if(c.startsWith("click:")){
             String text=command.substring(command.indexOf(':')+1).trim();
             return JarvisAccessibilityService.clickText(text)
-                    ? "জি Sir, আমি ""+text+""-এ click করেছি।"
-                    : "Sir, ""+text+"" button/text এখন screen-এ পাইনি।";
+                    ? "জি Sir, আমি \"" + text + "\"-এ click করেছি।"
+                    : "Sir, \"" + text + "\" button/text এখন screen-এ পাইনি।";
         }
         if(c.equals("back")) return JarvisAccessibilityService.back()
                 ? "জি Sir, back করেছি।" : "Sir, back করা যায়নি।";
