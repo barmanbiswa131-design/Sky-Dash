@@ -15,6 +15,18 @@ public class PhoneActionEngine {
             String name=command.substring(command.indexOf(':')+1).trim();
             return openApp(name);
         }
+        if(c.startsWith("type:")){
+            String text=command.substring(command.indexOf(':')+1).trim();
+            return JarvisAccessibilityService.inputText(text)
+                    ? "জি Sir, text লিখে দিয়েছি।"
+                    : "Sir, কোনো editable text box এখন পাইনি।";
+        }
+        if(c.startsWith("long_click:")){
+            String text=command.substring(command.indexOf(':')+11).trim();
+            return JarvisAccessibilityService.longClickText(text)
+                    ? "জি Sir, long click করেছি।"
+                    : "Sir, ওই text এখন screen-এ পাইনি।";
+        }
         if(c.startsWith("click:")){
             String text=command.substring(command.indexOf(':')+1).trim();
             return JarvisAccessibilityService.clickText(text)
