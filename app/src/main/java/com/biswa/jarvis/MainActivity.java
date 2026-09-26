@@ -6,12 +6,11 @@ import android.content.*;
 import android.content.pm.PackageManager;
 import android.os.*;
 import android.graphics.Color;
-import android.view.*;
 import android.widget.*;
 
 public class MainActivity extends Activity {
     TextView status;
-    Button power, quiet;
+    Button power;
 
     @Override public void onCreate(Bundle b){
         super.onCreate(b);
@@ -28,7 +27,7 @@ public class MainActivity extends Activity {
         root.addView(title);
 
         status=new TextView(this);
-        status.setText("AI stopped. Tap START AI.");
+        status.setText("Starting AI...");
         status.setTextColor(Color.LTGRAY);
         status.setTextSize(17);
         status.setPadding(0,8,0,28);
@@ -38,45 +37,29 @@ public class MainActivity extends Activity {
         power.setText("START AI");
         root.addView(power);
 
-        quiet=new Button(this);
-        quiet.setText("QUIET MODE");
-        root.addView(quiet);
-
         TextView hint=new TextView(this);
-        hint.setText("You can control me by voice: “chup raho” / “phir se baat karo”");
+        hint.setText("Voice control: “chup raho” / “phir se baat karo” / “AI band ho jao”");
         hint.setTextColor(Color.GRAY);
         hint.setTextSize(14);
         hint.setPadding(8,24,8,0);
         root.addView(hint);
 
-        power.setOnClickListener(v->{
-            if(power.getText().toString().startsWith("START")){
-                startAI();
-            }else{
-                stopAI();
-            }
-        });
-
-        quiet.setOnClickListener(v->{
-            if(quiet.getText().toString().startsWith("QUIET")){
-                sendCommand("QUIET");
-                quiet.setText("RESUME AI");
-                status.setText("Quiet mode enabled. Say “phir se baat karo” to resume.");
-            }else{
-                sendCommand("RESUME");
-                quiet.setText("QUIET MODE");
-                status.setText("AI active again.");
-            }
-        });
+        power.setOnClickListener(v->startAI());
 
         setContentView(root);
         requestPermissionsIfNeeded();
+
+        if(Build.VERSION.SDK_INT < 23 ||
+           checkSelfPermission(Manifest.permission.RECORD_AUDIO)==PackageManager.PERMISSION_GRANTED)
+            startAI();
     }
 
     void requestPermissionsIfNeeded(){
         if(Build.VERSION.SDK_INT>=23 &&
-           checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED)
+           checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},10);
+            return;
+        }
 
         if(Build.VERSION.SDK_INT>=33 &&
            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)
@@ -84,7 +67,8 @@ public class MainActivity extends Activity {
     }
 
     void startAI(){
-        if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
+        if(Build.VERSION.SDK_INT>=23 &&
+           checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
             requestPermissionsIfNeeded();
             return;
         }
@@ -93,21 +77,22 @@ public class MainActivity extends Activity {
         if(Build.VERSION.SDK_INT>=26)startForegroundService(i);
         else startService(i);
 
-        power.setText("STOP AI");
+        power.setText("AI ACTIVE");
+        power.setEnabled(false);
         status.setText("AI active. Speak normally.");
     }
 
-    void stopAI(){
-        stopService(new Intent(this,VoiceService.class));
-        power.setText("START AI");
-        quiet.setText("QUIET MODE");
-        status.setText("AI stopped.");
+    @Override protected void onResume(){
+        super.onResume();
+        if(Build.VERSION.SDK_INT < 23 ||
+           checkSelfPermission(Manifest.permission.RECORD_AUDIO)==PackageManager.PERMISSION_GRANTED)
+            startAI();
     }
 
-    void sendCommand(String action){
-        Intent i=new Intent(this,VoiceService.class);
-        i.setAction(action);
-        if(Build.VERSION.SDK_INT>=26)startForegroundService(i);
-        else startService(i);
+    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){
+        super.onRequestPermissionsResult(requestCode,permissions,grantResults);
+        if(requestCode==10 && grantResults.length>0 &&
+           grantResults[0]==PackageManager.PERMISSION_GRANTED)
+            startAI();
     }
 }
