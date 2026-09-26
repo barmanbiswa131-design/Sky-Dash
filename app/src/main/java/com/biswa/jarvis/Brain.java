@@ -36,11 +36,13 @@ public class Brain {
         }
         if(contains(t,"क्या याद है","क्या याद रखा","tumhe kya yaad","what do you remember")){
             String m=memory.memories();
-            return finish(raw,m.isEmpty()?"अभी कोई personal memory नहीं है।":"मेरी memory में है:\n"+m);
+            return finish(raw,m.isEmpty()?"अभी कोई personal memory नहीं है।":"मेरी memory में है:
+"+m);
         }
         if(contains(t,"पिछली बात","पहले क्या कहा","pichli baat","previous conversation")){
             String log=memory.conversation();
-            return finish(raw,log.isEmpty()?"हमारी कोई पुरानी conversation नहीं है।":"हाल की conversation:\n"+log);
+            return finish(raw,log.isEmpty()?"हमारी कोई पुरानी conversation नहीं है।":"हाल की conversation:
+"+log);
         }
         if(contains(t,"सब भूल जाओ","सब memory","सब कुछ भूल","forget memory","bhool jao")){
             memory.clear(); return "ठीक है। मेरी personal memory और conversation history मिटा दी।";
@@ -52,7 +54,18 @@ public class Brain {
         if(contains(t,"फिर से बात","फिर बात करो","resume","dobara bolo","phir se baat")){
             return "RESUME";
         }
-        if(contains(t,"front camera","front camera dekho","मुझे देखो","mujhe dekho","mera face dekho")) return "CAMERA:front";\n        if(contains(t,"rear camera","back camera","piche camera","पीछे camera","camera se dekho","camera se dekh")) return "CAMERA:rear";\n        if(contains(t,"instagram kholo","instagram खोलो","instagram open","open instagram","instagram khol")) return "PHONE:open_app:Instagram";\n        if(contains(t,"whatsapp kholo","whatsapp खोलो","whatsapp open","open whatsapp","whatsapp khol")) return "PHONE:open_app:WhatsApp";\n        if(contains(t,"facebook kholo","facebook खोलो","facebook open","open facebook")) return "PHONE:open_app:Facebook";\n        if(contains(t,"youtube kholo","youtube खोलो","youtube open","open youtube")) return "PHONE:open_app:YouTube";\n        if(contains(t,"telegram kholo","telegram खोलो","telegram open","open telegram")) return "PHONE:open_app:Telegram";\n        if(contains(t,"back jao","पीछे जाओ","back karo","go back")) return "PHONE:back";\n        if(contains(t,"home jao","home kholo","home screen","go home")) return "PHONE:home";\n        if(contains(t,"neeche scroll","नीचे scroll","scroll down")) return "PHONE:scroll_down";\n        if(contains(t,"upar scroll","ऊपर scroll","scroll up")) return "PHONE:scroll_up";\n        if(contains(t,"पूरी तरह बंद","बंद हो जाओ","बंद हो जा","ai बंद","ai band","band ho jao","band ho ja","shutdown","stop ai")){
+        if(contains(t,"front camera","front camera dekho","मुझे देखो","mujhe dekho","mera face dekho")) return "CAMERA:front";
+        if(contains(t,"rear camera","back camera","piche camera","पीछे camera","camera se dekho","camera se dekh")) return "CAMERA:rear";
+        if(contains(t,"instagram kholo","instagram खोलो","instagram open","open instagram","instagram khol")) return "PHONE:open_app:Instagram";
+        if(contains(t,"whatsapp kholo","whatsapp खोलो","whatsapp open","open whatsapp","whatsapp khol")) return "PHONE:open_app:WhatsApp";
+        if(contains(t,"facebook kholo","facebook खोलो","facebook open","open facebook")) return "PHONE:open_app:Facebook";
+        if(contains(t,"youtube kholo","youtube खोलो","youtube open","open youtube")) return "PHONE:open_app:YouTube";
+        if(contains(t,"telegram kholo","telegram खोलो","telegram open","open telegram")) return "PHONE:open_app:Telegram";
+        if(contains(t,"back jao","पीछे जाओ","back karo","go back")) return "PHONE:back";
+        if(contains(t,"home jao","home kholo","home screen","go home")) return "PHONE:home";
+        if(contains(t,"neeche scroll","नीचे scroll","scroll down")) return "PHONE:scroll_down";
+        if(contains(t,"upar scroll","ऊपर scroll","scroll up")) return "PHONE:scroll_up";
+        if(contains(t,"पूरी तरह बंद","बंद हो जाओ","बंद हो जा","ai बंद","ai band","band ho jao","band ho ja","shutdown","stop ai")){
             return "STOP";
         }
 
@@ -95,9 +108,16 @@ public class Brain {
         String mem=memory.memories();
         String recent=memory.conversation();
         StringBuilder p=new StringBuilder();
-        if(!mem.isEmpty())p.append("Relevant personal memory:\n").append(mem).append("\n\n");
-        if(!recent.isEmpty())p.append("Recent conversation:\n").append(recent).append("\n\n");
-        p.append("User said:\n").append(userText);
+        if(!mem.isEmpty())p.append("Relevant personal memory:
+").append(mem).append("
+
+");
+        if(!recent.isEmpty())p.append("Recent conversation:
+").append(recent).append("
+
+");
+        p.append("User said:
+").append(userText);
         return p.toString();
     }
 
